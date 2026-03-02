@@ -533,9 +533,9 @@ async def test_notification_outbox_records_failures(db_infra, async_redis):
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            init = await _init_project_auth(
-                client, project_slug="test-outbox-fail", alias="watcher"
-            )
+            slug = "test-outbox-fail"
+            watcher = await _init_project_auth(client, project_slug=slug, alias="watcher")
+            uploader = await _init_project_auth(client, project_slug=slug, alias="uploader")
 
             # First upload to create the bead
             await client.post(
@@ -544,39 +544,39 @@ async def test_notification_outbox_records_failures(db_infra, async_redis):
                     "repo": "outbox-repo",
                     "issues": [{"id": "outbox-bead", "status": "open", "priority": 1}],
                 },
-                headers=_auth_headers(init["api_key"]),
+                headers=_auth_headers(uploader["api_key"]),
             )
 
-            # Subscribe, then delete workspace to force notification failure
+            # Subscribe watcher, then delete its workspace to force notification failure
             await client.post(
                 "/v1/subscriptions",
                 json={
-                    "workspace_id": init["workspace_id"],
+                    "workspace_id": watcher["workspace_id"],
                     "alias": "watcher",
                     "bead_id": "outbox-bead",
                     "repo": "outbox-repo",
                     "event_types": ["status_change"],
                 },
-                headers=_auth_headers(init["api_key"]),
+                headers=_auth_headers(watcher["api_key"]),
             )
             delete_resp = await client.delete(
-                f"/v1/workspaces/{init['workspace_id']}",
-                headers=_auth_headers(init["api_key"]),
+                f"/v1/workspaces/{watcher['workspace_id']}",
+                headers=_auth_headers(watcher["api_key"]),
             )
             assert delete_resp.status_code == 200
 
-            # Upload status change - should record outbox entry but fail to send
+            # Upload status change via uploader — notification to watcher should fail
             resp = await client.post(
                 "/v1/beads/upload",
                 json={
                     "repo": "outbox-repo",
                     "issues": [{"id": "outbox-bead", "status": "closed", "priority": 1}],
                 },
-                headers=_auth_headers(init["api_key"]),
+                headers=_auth_headers(uploader["api_key"]),
             )
             assert resp.status_code == 200
             result = resp.json()
-            # Notification failed because workspace doesn't exist
+            # Notification failed because watcher's workspace is deleted
             assert result["notifications_failed"] == 1
             assert result["notifications_sent"] == 0
 

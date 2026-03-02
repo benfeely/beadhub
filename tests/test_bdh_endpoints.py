@@ -157,7 +157,8 @@ async def test_bdh_sync_sets_and_clears_claims(db_infra, init_workspace):
 
 
 @pytest.mark.asyncio
-async def test_bdh_command_returns_410_when_workspace_deleted(db_infra, init_workspace):
+async def test_bdh_command_returns_401_when_workspace_deleted(db_infra, init_workspace):
+    """Workspace deletion cascades to agent soft-delete, deactivating API keys."""
     redis = await Redis.from_url(TEST_REDIS_URL, decode_responses=True)
     try:
         await redis.ping()
@@ -181,7 +182,7 @@ async def test_bdh_command_returns_410_when_workspace_deleted(db_infra, init_wor
                     role="agent",
                 )
 
-                # Soft-delete workspace.
+                # Soft-delete workspace (cascades to agent soft-delete).
                 delete_resp = await client.delete(
                     f"/v1/workspaces/{init['workspace_id']}",
                     headers=auth_headers(init["api_key"]),
@@ -201,9 +202,9 @@ async def test_bdh_command_returns_410_when_workspace_deleted(db_infra, init_wor
                         "command_line": "ready",
                     },
                 )
-                assert resp.status_code == 410, resp.text
+                assert resp.status_code == 401, resp.text
     except Exception:
-        logger.exception("test_bdh_command_returns_410_when_workspace_deleted failed")
+        logger.exception("test_bdh_command_returns_401_when_workspace_deleted failed")
         raise
     finally:
         await redis.flushdb()

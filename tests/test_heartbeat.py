@@ -210,7 +210,7 @@ async def test_heartbeat_alias_mismatch(db_infra, init_workspace):
 
 @pytest.mark.asyncio
 async def test_heartbeat_deleted_workspace(db_infra, init_workspace):
-    """Heartbeat with a soft-deleted workspace returns 410."""
+    """Heartbeat with a soft-deleted workspace returns 401 (API key deactivated)."""
     redis = await Redis.from_url(TEST_REDIS_URL, decode_responses=True)
     try:
         await redis.ping()
@@ -233,7 +233,7 @@ async def test_heartbeat_deleted_workspace(db_infra, init_workspace):
                     role="agent",
                 )
 
-                # Soft-delete workspace
+                # Soft-delete workspace (cascades to agent soft-delete)
                 delete_resp = await client.delete(
                     f"/v1/workspaces/{init['workspace_id']}",
                     headers=auth_headers(init["api_key"]),
@@ -245,8 +245,7 @@ async def test_heartbeat_deleted_workspace(db_infra, init_workspace):
                     headers=auth_headers(init["api_key"]),
                     json=heartbeat_payload(init),
                 )
-                assert resp.status_code == 410, resp.text
-                assert "deleted" in resp.json()["detail"].lower()
+                assert resp.status_code == 401, resp.text
     finally:
         await redis.flushdb()
         await redis.aclose()

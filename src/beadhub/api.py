@@ -28,6 +28,7 @@ from .routes.escalations import router as escalations_router
 from .routes.init import router as init_router
 from .routes.mcp import router as mcp_router
 from .routes.policies import router as policies_router
+from .routes.repos import router as repos_router
 from .routes.status import router as status_router
 from .routes.subscriptions import router as subscriptions_router
 from .routes.workspaces import router as workspaces_router
@@ -246,6 +247,7 @@ def create_app(
     app.include_router(status_router)
     app.include_router(subscriptions_router)
     app.include_router(workspaces_router)
+    app.include_router(repos_router)
     app.include_router(mcp_router)
 
     # Serve frontend dashboard if available and enabled

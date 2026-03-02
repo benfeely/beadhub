@@ -14,6 +14,7 @@ from typing import Optional
 from urllib.parse import urlparse
 from uuid import UUID
 
+from aweb.bootstrap import soft_delete_agent
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 from redis.asyncio import Redis
@@ -492,6 +493,10 @@ async def delete_repo(
             """,
             str(repo_id),
         )
+
+    # Cascade to aweb agents: deactivate identities, keys, and free aliases.
+    for ws_id in workspace_ids:
+        await soft_delete_agent(db, agent_id=ws_id, project_id=str(repo["project_id"]))
 
     # Delete claims for these workspaces
     claims_deleted = 0

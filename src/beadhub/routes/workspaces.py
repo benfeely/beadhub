@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 import asyncpg.exceptions
+from aweb.bootstrap import soft_delete_agent
 from aweb.presence import update_agent_presence as update_aweb_agent_presence
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pgdbm.errors import QueryError
@@ -825,6 +826,9 @@ async def delete_workspace(
         """,
         validated_id,
     )
+
+    # Cascade to aweb agent: deactivate identity, keys, and free the alias.
+    await soft_delete_agent(db, agent_id=validated_id, project_id=project_id)
 
     return DeleteWorkspaceResponse(
         workspace_id=validated_id,
